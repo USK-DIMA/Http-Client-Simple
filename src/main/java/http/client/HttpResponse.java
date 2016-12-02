@@ -31,4 +31,9 @@ public class HttpResponse extends Http {
     public void setStatusMessage(String statusMessage) {
         this.statusMessage = statusMessage;
     }
+
+    public String getStatusLine() {
+        return version + " " + statusMessage + " " + statusMessage;
+    }
+
 }

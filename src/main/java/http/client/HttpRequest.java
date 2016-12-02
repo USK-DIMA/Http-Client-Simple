@@ -1,6 +1,6 @@
 package http.client;
 
-import static http.client.httpConst.END_LINE;
+import static http.client.HttpConst.END_LINE;
 
 /**
  * Created by Dmitry on 30.11.2016.

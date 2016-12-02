@@ -28,6 +28,10 @@ public class Http {
         return headers.size();
     }
 
+    public List<HttpHeader> getHeaders() {
+        return headers;
+    }
+
     public int addHeader(String key, String value) {
         return addHeader(new HttpHeader(key, value));
     }

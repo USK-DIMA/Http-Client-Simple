@@ -1,6 +1,6 @@
 package http.client;
 
-import static http.client.httpConst.END_LINE;
+import static http.client.HttpConst.END_LINE;
 
 /**
  * Created by Dmitry on 30.11.2016.
@@ -38,6 +38,11 @@ public class HttpHeader {
         stringBuilder.append(value);
         stringBuilder.append(END_LINE);
         return stringBuilder.toString();
+    }
+
+    @Override
+    public String toString() {
+        return key + SEPARATOR + value;
     }
 
     private int length() {

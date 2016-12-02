@@ -11,7 +11,13 @@ import java.util.concurrent.TimeoutException;
 public class Main {
 
     public static void main(String[] args) throws IOException, InterruptedException, ExecutionException, TimeoutException {
-        HttpResponse response = HttpClient.get("http://www.javaportal.ru/java/articles/java_http_web/article03.html", "windows-1251");
+        String url = "http://www.javaportal.ru/java/articles/java_http_web/article03.html";
+        String encoding = "windows-1251";
+        HttpResponse response = HttpClient.get(url, encoding);
+
+        System.out.println(response.getStatusCode());
+        System.out.println(response.getStatusMessage());
+        System.out.println(response.getVersion());
         System.out.println(response.getBody());
 
     }
