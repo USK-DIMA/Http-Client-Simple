@@ -1,6 +1,8 @@
 package http.client;
 
 
+import org.apache.commons.lang3.StringUtils;
+
 /**
  * Created by Dmitry on 02.12.2016.
  */
@@ -10,10 +12,10 @@ public class HttpResponse extends Http {
     private String statusMessage;
 
     public void initFirstLine(String firstLine){
-        String[] fl  = firstLine.split(" ");
-        version = fl[0];
-        statusCode = Integer.valueOf(fl[1]);
-        statusMessage = fl[2];
+        version = StringUtils.substringBefore(firstLine, " ");
+        firstLine = StringUtils.substringAfter(firstLine, " ");
+        statusCode = Integer.valueOf(StringUtils.substringBefore(firstLine, " "));
+        statusMessage = StringUtils.substringAfter(firstLine, " ");
     }
 
     public int getStatusCode() {
@@ -33,7 +35,7 @@ public class HttpResponse extends Http {
     }
 
     public String getStatusLine() {
-        return version + " " + statusMessage + " " + statusMessage;
+        return version + " " + statusCode + " " + statusMessage;
     }
 
 }
