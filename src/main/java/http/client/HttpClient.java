@@ -50,7 +50,8 @@ public class HttpClient {
         HttpRequest request = new HttpRequest(url);
         request.addHeader("Host", host);
         request.addHeader("Connection", "Keep-alive");
-        request.addHeader("User-Agent", "Apache-HttpClient/4.3.6 (java 1.5)");
+        //request.addHeader("User-Agent", "Apache-HttpClient/4.3.6 (java 1.5)");
+        request.addHeader("User-Agent", "HttpClient/0.1.0 (java 1.8)");
         return request;
     }
 
