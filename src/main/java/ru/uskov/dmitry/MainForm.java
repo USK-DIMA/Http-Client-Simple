@@ -26,9 +26,15 @@ public class MainForm {
     private JLabel infoLable;
     private JList headerList;
     private JTextField statusTextField;
+    private JComboBox methodComboBox;
+    private JComboBox encodingComboBox;
 
 
     public MainForm() {
+        methodComboBox.setModel(new DefaultComboBoxModel(new String[]{"GET", "POST"}));
+        encodingComboBox.setModel(new DefaultComboBoxModel(new String[]{"UTF-8", "windows-1251"}));
+
+
         printInfo("Ready");
         statusTextField.setEnabled(false);
         sendButton.addActionListener(e -> {
@@ -58,7 +64,7 @@ public class MainForm {
     }
 
     private String getEncoding() {
-        return "windows-1251";
+        return encodingComboBox.getSelectedItem().toString();
     }
 
     private void printInfo(String message) {
