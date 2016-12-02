@@ -9,10 +9,6 @@ public class HttpResponse extends Http {
     private int statusCode;
     private String statusMessage;
 
-    public String getBody() {
-        return null;
-    }
-
     public void initFirstLine(String firstLine){
         String[] fl  = firstLine.split(" ");
         version = fl[0];

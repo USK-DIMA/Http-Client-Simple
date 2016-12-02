@@ -13,6 +13,16 @@ public class Http {
 
     protected String version;
 
+    protected String body;
+
+    public String getBody() {
+        return body;
+    }
+
+    public void setBody(String body) {
+        this.body = body;
+    }
+
     public int addHeader(HttpHeader header) {
         headers.add(header);
         return headers.size();

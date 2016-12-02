@@ -2,6 +2,7 @@ package http.client;
 
 import org.apache.commons.lang3.StringUtils;
 
+import java.awt.*;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.InetSocketAddress;
@@ -21,6 +22,38 @@ public class HttpClient {
     public static final int DEFAULT_PORT = 80;
     private static final String CHARSET_NAME = "UTF-8";
 
+    public static HttpResponse get(String url, String encoding) throws IOException, InterruptedException, ExecutionException, TimeoutException {
+        return get(url, DEFAULT_PORT, encoding);
+    }
+
+    public static HttpResponse get(String url, int port, String encoding) throws IOException, InterruptedException, ExecutionException, TimeoutException {
+        url = removeProtocolHttp(url);
+        String host = urlToHost(url);
+        url = "/" + StringUtils.substringAfter(url, "/");
+        SocketChannel socketChannel = initSocket(host, port);
+        HttpRequest request = createHttpRequest(host, url);
+        sendRequst(socketChannel, request.toString());
+        return readResponse(socketChannel, encoding);
+    }
+
+    private static SocketChannel initSocket(String host, int port) throws IOException {
+        if (port == -1) {
+            port = DEFAULT_PORT;
+        }
+        SocketChannel socketChannel = SocketChannel.open();
+        SocketAddress socketAddress = new InetSocketAddress(host, port);
+        socketChannel.connect(socketAddress);
+        return socketChannel;
+    }
+
+    private static HttpRequest createHttpRequest(String host, String url) {
+        HttpRequest request = new HttpRequest(url);
+        request.addHeader("Host", host);
+        request.addHeader("Connection", "Keep-alive");
+        request.addHeader("User-Agent", "Apache-HttpClient/4.3.6 (java 1.5)");
+        return request;
+    }
+
     private static void sendRequst(SocketChannel socketChannel, String message) throws IOException {
         System.out.println(message);
         ByteBuffer byteBuffer = ByteBuffer.wrap(message.getBytes(CHARSET_NAME), 0, message.getBytes(CHARSET_NAME).length);
@@ -30,7 +63,38 @@ public class HttpClient {
     private static HttpResponse readResponse(SocketChannel socketChannel, String encoding) throws ExecutionException, InterruptedException, TimeoutException, IOException {
         HttpResponse response = new HttpResponse();
 
-        StringBuilder  builder = new StringBuilder();
+        String startLine = readStartLine(socketChannel);
+        response.initFirstLine(startLine);
+
+        List<HttpHeader> headers = readHeaders(socketChannel);
+        response.addHeaders(headers);
+
+        String body = readBody(socketChannel, encoding, response);
+
+        response.setBody(body);
+        return response;
+    }
+
+    private static String readStartLine(SocketChannel socketChannel) throws IOException {
+        StringBuilder builder = new StringBuilder();
+        ByteBuffer byteBuffer = ByteBuffer.allocate(1);
+        int read;
+        boolean statusLineComlite = false;
+        String statusLine = "";
+        while (!statusLineComlite) {
+            byteBuffer.clear();
+            read = socketChannel.read(byteBuffer);
+            if (read != -1) {
+                builder.append(new String(byteBuffer.array(), 0, read, CHARSET_NAME));
+                statusLine = builder.toString();
+                statusLineComlite = statusLine.indexOf("\r\n") != -1;
+            }
+        }
+        return StringUtils.substringBefore(statusLine, "\r\n");
+    }
+
+    private static List<HttpHeader> readHeaders(SocketChannel socketChannel) throws IOException {
+        StringBuilder builder = new StringBuilder();
         ByteBuffer byteBuffer = ByteBuffer.allocate(1);
         int read = 1;
         boolean headresIsRed = false;
@@ -38,86 +102,87 @@ public class HttpClient {
         while (!headresIsRed) {
             byteBuffer.clear();
             read = socketChannel.read(byteBuffer);
-            if(read!=-1) {
+            if (read != -1) {
                 builder.append(new String(byteBuffer.array(), 0, read, CHARSET_NAME));
                 readedMessage = builder.toString();
-                headresIsRed = readedMessage.indexOf("\r\n\r\n")!=-1;
+                headresIsRed = readedMessage.indexOf("\r\n\r\n") != -1;
             }
         }
-        String headersAndStartLine = StringUtils.substringBefore(builder.toString(), "\r\n\r\n");
-        String startLine = StringUtils.substringBefore(headersAndStartLine, "\r\n");
-        String headers = StringUtils.substringAfter(headersAndStartLine, "\r\n");
-        List<HttpHeader> responseHeaders = parseHeaders(headers);
-        response.addHeaders(responseHeaders);
-        response.initFirstLine(startLine);
-        if(!response.headerValue("Transfer-Encoding", "chunked")) {
-            throw new RuntimeException("Невозможно принять данный запрос");
+        String headers = StringUtils.substringBefore(builder.toString(), "\r\n\r\n");
+        return parseHeaders(headers);
+    }
+
+    private static List<HttpHeader> parseHeaders(String headers) {
+        List<HttpHeader> headrsList = new ArrayList<HttpHeader>();
+        String[] headersSplit = headers.split("\r\n");
+        for (int i = 0; i < headersSplit.length; i++) {
+            String[] header = headersSplit[i].split(": ");
+            headrsList.add(new HttpHeader(header[0], header[1]));
         }
+        return headrsList;
+    }
 
-        //String chunkString = readChunk(readedMessage, socketChannel, encoding);
-        /*String chunkLengthHex = StringUtils.substringBetween(readedMessage, "\r\n\r\n", "\r\n");
+    private static String readBody(SocketChannel socketChannel, String encoding, HttpResponse response) throws IOException {
+        String body;
+        if (response.headerValue("Transfer-Encoding", "chunked")) {
+            body = readByChunk(socketChannel, encoding);
+        } else if (response.headerByKey("Content-Length") != null) {
+            String lengthString = response.headerByKey("Content-Length").getValue();
+            int length = Integer.valueOf(lengthString);
+            body = readChunk(length, socketChannel, encoding);
+        } else {
+            throw new IllegalComponentStateException("");
+        }
+        return body;
+    }
 
-        int chunkLengthL = Integer.parseInt(chunkLengthHex, 16);
-        String m = StringUtils.substringAfter(readedMessage, chunkLengthHex+"\r\n");
-        chunkLengthL-= m.getBytes(CHARSET_NAME).length;*/
-        //String chunkString = m + readChunk(chunkLengthL, socketChannel, encoding);
-
-        //printSimple(socketChannel);
-
+    private static String readByChunk(SocketChannel socketChannel, String encoding) throws IOException {
         StringBuilder builderBody = new StringBuilder();
-        String chunkString = "";
-        //builderBody.append(chunkString);
-        while (chunkString !=null) {
+        String chunkString;
+        do {
             chunkString = readChunk(socketChannel, encoding);
             if(chunkString!=null) {
                 builderBody.append(chunkString);
             }
-        }
-        String body = builderBody.toString();
+        } while (chunkString != null);
 
-        System.out.println(body);
-
-        return response;
+        return builderBody.toString();
     }
 
 
-    private static String readChunk(String readedMessage, SocketChannel socketChannel, String encoding) throws IOException {
-        String chunkLengthHex = readedMessage.replace("\r\n", "");
+    private static int parseChunckLength(String chunkLengthString) {
+        String chunkLengthHex = chunkLengthString.replace("\r\n", "");
         if(chunkLengthHex.trim().equals("0")){
-            return null;
+            return -1;
         }
-        int chunkLengthL = Integer.parseInt(chunkLengthHex, 16);
-        //String m = StringUtils.substringAfter(readedMessage, chunkLengthHex+"\r\n");
-        //int bCount = m.getBytes(CHARSET_NAME).length;
-        //chunkLengthL-= bCount;
-        StringBuilder builderBody = new StringBuilder();
-        String chunkString = readChunk(chunkLengthL, socketChannel, encoding);
-        return chunkString;
+        return Integer.parseInt(chunkLengthHex, 16);
     }
 
     private static String readChunk(SocketChannel socketChannel, String encoding) throws IOException {
         StringBuilder builder = new StringBuilder();
         ByteBuffer byteBuffer = ByteBuffer.allocate(1);
-        int read = 1;
-        int sumRead = 0;
+        int read;
         boolean chunkLengthIsRead = false;
-        String readedMessage = "";
+        String chunkLengthString = "";
         while (!chunkLengthIsRead) {
             byteBuffer.clear();
             read = socketChannel.read(byteBuffer);
             if(read!=-1) {
                 builder.append(new String(byteBuffer.array(), 0, read, CHARSET_NAME));
-                readedMessage = builder.toString();
-                chunkLengthIsRead = (readedMessage.indexOf("\r\n")!=-1 && !StringUtils.substringBeforeLast(readedMessage, "\r\n").equals(""));
+                chunkLengthString = builder.toString();
+                chunkLengthIsRead = (chunkLengthString.indexOf("\r\n") != -1 && !StringUtils.substringBeforeLast(chunkLengthString, "\r\n").equals(""));
             }
         }
-        return readChunk(readedMessage, socketChannel, encoding);
+        return readChunk(parseChunckLength(chunkLengthString), socketChannel, encoding);
     }
 
     private static String readChunk(int chunkLengthL, SocketChannel socketChannel, String encoding) throws IOException {
+        if (chunkLengthL == -1) {
+            return null;
+        }
         StringBuilder builder = new StringBuilder(chunkLengthL);
         ByteBuffer byteBuffer;
-        long read = 1;
+        long read;
         long sumRead = 0;
         while (sumRead<chunkLengthL) {
             byteBuffer = ByteBuffer.allocate((int)(chunkLengthL-sumRead));
@@ -130,15 +195,6 @@ public class HttpClient {
         return builder.toString();
     }
 
-    private static List<HttpHeader> parseHeaders(String headers) {
-        List<HttpHeader> headrsList= new ArrayList<HttpHeader>();
-        String[] headersSplit = headers.split("\r\n");
-        for(int i=0; i<headersSplit.length; i++){
-            String[] header = headersSplit[i].split(": ");
-            headrsList.add(new HttpHeader(header[0], header[1]));
-        }
-        return headrsList;
-    }
 
 
     /**
@@ -157,22 +213,9 @@ public class HttpClient {
         return StringUtils.substringBefore(url, "/");
     }
 
-    private static SocketChannel initSocket(String host, int port) throws IOException {
-        if(port == -1) {
-            port = DEFAULT_PORT;
-        }
-        SocketChannel socketChannel = SocketChannel.open();
-        SocketAddress socketAddress = new InetSocketAddress(host, port);
-        socketChannel.connect(socketAddress);
-        return socketChannel;
-    }
 
 
-
-    public static HttpResponse get(String url, String encoding) throws IOException, InterruptedException, ExecutionException, TimeoutException {
-        return get(url, DEFAULT_PORT, encoding);
-    }
-    public static HttpResponse getSimple(String url, String encoding) throws IOException, InterruptedException, ExecutionException, TimeoutException {
+/*    public static HttpResponse getSimple(String url, String encoding) throws IOException, InterruptedException, ExecutionException, TimeoutException {
         url = removeProtocolHttp(url);
         String host = urlToHost(url);
         url = "/"+StringUtils.substringAfter(url, "/");
@@ -200,18 +243,6 @@ public class HttpClient {
             }
         }
         //System.out.println(builder.toString());
-    }
+    }*/
 
-    public static HttpResponse get(String url, int port, String encoding) throws IOException, InterruptedException, ExecutionException, TimeoutException {
-        url = removeProtocolHttp(url);
-        String host = urlToHost(url);
-        url = "/"+StringUtils.substringAfter(url, "/");
-        SocketChannel socketChannel = initSocket(host, port);
-        HttpRequest request = new HttpRequest(url);
-        request.addHeader("Host", host);
-        request.addHeader("Connection", "Keep-alive");
-        request.addHeader("User-Agent", "Apache-HttpClient/4.3.6 (java 1.5)");
-        sendRequst(socketChannel, request.toString());
-        return readResponse(socketChannel, encoding);
-    }
 }
