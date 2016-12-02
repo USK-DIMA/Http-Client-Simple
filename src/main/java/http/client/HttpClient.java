@@ -149,7 +149,6 @@ public class HttpClient {
         return builderBody.toString();
     }
 
-
     private static int parseChunckLength(String chunkLengthString) {
         String chunkLengthHex = chunkLengthString.replace("\r\n", "");
         if(chunkLengthHex.trim().equals("0")){
@@ -195,8 +194,6 @@ public class HttpClient {
         return builder.toString();
     }
 
-
-
     /**
      * Удаляет префикс http://, если таковой имеется
      * @param url
@@ -212,37 +209,5 @@ public class HttpClient {
     private static String urlToHost(String url) {
         return StringUtils.substringBefore(url, "/");
     }
-
-
-
-/*    public static HttpResponse getSimple(String url, String encoding) throws IOException, InterruptedException, ExecutionException, TimeoutException {
-        url = removeProtocolHttp(url);
-        String host = urlToHost(url);
-        url = "/"+StringUtils.substringAfter(url, "/");
-        SocketChannel socketChannel = initSocket(host, 80);
-        HttpRequest request = new HttpRequest(url);
-        request.addHeader("Host", host);
-        request.addHeader("Connection", "Keep-alive");
-        request.addHeader("User-Agent", "Apache-HttpClient/4.3.6 (java 1.5)");
-        sendRequst(socketChannel, request.toString());
-        printSimple(socketChannel);
-
-        return null;
-    }
-
-    private static void printSimple(SocketChannel socketChannel) throws IOException {
-        StringBuilder  builder = new StringBuilder();
-        ByteBuffer byteBuffer = ByteBuffer.allocate(16384);
-        int read = 1;
-        String readedMessage = "";
-        while (read>0) {
-            byteBuffer.clear();
-            read = socketChannel.read(byteBuffer);
-            if(read!=-1) {
-                System.out.println(new String(byteBuffer.array(), 0, read, "UTF-8"));
-            }
-        }
-        //System.out.println(builder.toString());
-    }*/
 
 }
